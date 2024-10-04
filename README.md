@@ -1,4 +1,4 @@
-# MAID
+# MAID - `M`arkdown `AI` `D`oc creator
 
 `maid` is a Python script that aggregates content from directories and files into a single Markdown file. It supports various options for logging, blacklisting files, and reading local `.maidignore` files.
 
