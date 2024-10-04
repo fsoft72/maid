@@ -8,6 +8,17 @@ import sys
 from pathlib import Path
 import fnmatch
 
+# default blacklist
+BLACKLIST = [
+    ".git",
+    "__pycache__",
+    "*.log",
+    "LICENSE",
+    "node_modules",
+    "*.bak",
+    "*.old",
+]
+
 
 def is_binary(file_path):
     """
@@ -113,7 +124,7 @@ def main():
     parser.add_argument(
         "--blacklist",
         action="append",
-        default=[".git", "__pycache__", "*.log", "LICENSE"],
+        default=BLACKLIST,
         help="Glob patterns for files or directories to skip (matched against filename only)",
     )
     parser.add_argument(
