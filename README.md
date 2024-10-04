@@ -10,11 +10,11 @@
 
 ### Options
 
-- -o, --output (required): Specify the output Markdown file.
-- --log: Enable logging to stdout.
-- --blacklist: Glob patterns for files or directories to skip (matched against filename only). This option can be used multiple times.
-- --blacklist-file: File containing blacklist glob patterns.
-- --local-maidignore: Enable reading of .maidignore files in directories.
+- `-o`, `--output` (required): Specify the output Markdown file.
+- `--log`: Enable logging to stdout.
+- `--blacklist`: Glob patterns for files or directories to skip (matched against filename only). This option can be used multiple times.
+- `--blacklist-file`: File containing blacklist glob patterns.
+- `--local-maidignore`: Enable reading of .maidignore files in directories.
 
 ### Arguments
 
