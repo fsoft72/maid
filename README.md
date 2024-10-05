@@ -10,11 +10,11 @@
 
 ### Options
 
-- `-o`, `--output` (required): Specify the output Markdown file.
+- `-o`, `--output`: Specify the output Markdown file (default: `_content.md` in the current directory).
 - `--log`: Enable logging to stdout.
 - `--blacklist`: Glob patterns for files or directories to skip (matched against filename only). This option can be used multiple times.
 - `--blacklist-file`: File containing blacklist glob patterns.
-- `--local-maidignore`: Enable reading of .maidignore files in directories.
+- `--version`: Display the version.
 
 ### Arguments
 
@@ -54,13 +54,17 @@ To use a blacklist file:
 ./maid.py -o output.md --blacklist-file blacklist.txt src
 ```
 
-### Reading Local .maidignore Files
+### Reading Global and Local .maidignore Files
 
-To enable reading of .maidignore files in directories:
+Every directory scanned by `maid` will be checked for a `.maidignore` file. If found, the patterns in the file will be used to skip files or directories.
+Patterns are added to the current blacklist, so they can be combined with other blacklist patterns.
 
-```bash
-./maid.py -o output.md --local-maidignore src
-```
+At startup, `maid` will look for a global `.maidignore` file in the following locations:
+
+- Home directory.
+- `.maid` directory in the home directory.
+- `.local/share/maid` directory in the home directory.
+- `.config/maid` directory in the home directory.
 
 ### Blacklist Patterns
 
