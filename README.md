@@ -150,6 +150,43 @@ A rule is defined by a dictionary with the following keys:
 
 Rules are applied only if the pattern matches the file name and they are applied in the order they are defined in the `rules` section.
 
+### Useful Rules
+
+Here are some useful rules that can be used to filter text files:
+
+- Remove all single line comments from files
+
+  ```json
+  {
+    "name": "Remove single line comments",
+    "pattern": "*.*",
+    "start": "^\\s*//.*",
+    "delete": "::line::"
+  }
+  ```
+
+- Remove all `<style>` blocks from Svelte files
+
+  ```json
+  {
+    "name": "Remove style blocks",
+    "pattern": "*.svelte",
+    "start": "<style>",
+    "delete": "</style>"
+  }
+  ```
+
+- Remove all empty lines from the file (run this as the latest rule)
+
+  ```json
+  {
+    "name": "Remove empty lines",
+    "pattern": "*.*",
+    "start": "^\\s*$",
+    "delete": "::line::"
+  }
+  ```
+
 ## Logging
 
 If the `--log` option is enabled, `maid` will log its actions to stdout, including which files are being processed and which are being skipped due to blacklist patterns.

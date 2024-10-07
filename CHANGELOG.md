@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - WIP
+
+- Enhanced: support for both `maid.json` and `.maid.json` files.
+
 ## [0.3.1] - 2024-10-07
 
 - Fixed issue with reading global `maid.json` file.

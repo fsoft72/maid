@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 # default blacklist
 BLACKLIST = [
@@ -61,6 +61,7 @@ def _ext2markdown(fname):
         ".sh": "bash",
         ".js": "javascript",
         ".json": "json",
+        ".svelte": "svelte",
         ".html": "html",
         ".css": "css",
         ".md": "markdown",
@@ -116,7 +117,22 @@ def _apply_rules(file_name, content, rules):
     import fnmatch
     import logging
 
+    do_debug = False
+    """
+    if str(file_name).endswith("theme.ts"):
+        print("=== FILE: ", file_name, rules)
+        do_debug = True
+    """
+
     for rule in rules:
+        if do_debug:
+            print(
+                "=== RULE: ",
+                file_name,
+                rule["name"],
+                rule["pattern"],
+                fnmatch.fnmatch(file_name, rule["pattern"]),
+            )
         if fnmatch.fnmatch(file_name, rule["pattern"]):
             logging.info(f"Applying rule: {rule['name']} to {file_name}")
 
@@ -214,14 +230,25 @@ def load_maid_conf(directory, blacklist, rules):
     Load maid.json file from a directory.
     """
     maid_conf_path = os.path.join(directory, "maid.json")
+    hidden_conf_path = os.path.join(directory, ".maid.json")
+    p = None
+
     if os.path.exists(maid_conf_path):
         logging.info(f"Found maid.json in {directory}")
+        p = maid_conf_path
 
-        dct = json.loads(open(maid_conf_path, "r").read())
-        if "patterns" in dct:
-            blacklist.extend(dct["patterns"])
-        if "rules" in dct:
-            rules.extend(dct["rules"])
+    elif os.path.exists(hidden_conf_path):
+        logging.info(f"Found .maid.json in {directory}")
+        p = hidden_conf_path
+
+    if not p:
+        return
+
+    dct = json.loads(open(p, "r").read())
+    if "patterns" in dct:
+        blacklist.extend(dct["patterns"])
+    if "rules" in dct:
+        rules.extend(dct["rules"])
 
 
 def scan_directory(directory, markdown_content, global_blacklist, global_rules):
@@ -257,12 +284,7 @@ def _maid_init(args):
 
     # load global blacklist from home directory '.maid.json' if exists
     home = str(Path.home())
-    dirs = [
-        home,
-        os.path.join(home, ".maid.json"),
-        os.path.join(home, ".local", "share", "maid.json"),
-        os.path.join(home, ".config", "maid.json"),
-    ]
+    dirs = [home, os.path.join(home, ".local", "share"), os.path.join(home, ".config")]
 
     for d in dirs:
         load_maid_conf(d, blacklist, rules)
