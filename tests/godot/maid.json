@@ -1,0 +1,65 @@
+{
+    "patterns": [
+        "*.import",
+        "*.md",
+        "*.cfg",
+        ".godot"
+    ],
+    "rules": [
+        {
+            "pattern": "*.tscn",
+            "name": "subres RectangleShape",
+            "start": ".sub_resource.*type=.RectangleShape",
+            "delete": "::empty::",
+            "keep_start": false
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "subres AtlasTexture",
+            "start": ".sub_resource.*type=.AtlasTexture",
+            "delete": "::empty::",
+            "keep_start": false
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "subres Curve",
+            "start": ".sub_resource.*type=.Curve",
+            "delete": "::empty::",
+            "keep_start": false
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "subres Gradient",
+            "start": ".sub_resource.*type=.Gradient",
+            "delete": "::empty::",
+            "keep_start": false
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "animations",
+            "start": "animations =",
+            "delete": "}]$",
+            "keep_start": false
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "Ext Resources",
+            "start": ".ext_resource ",
+            "delete": "::line::",
+            "keep_start": false
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "Generic nodes",
+            "start": ".node ",
+            "delete": "::empty::",
+            "keep_start": true
+        },
+        {
+            "pattern": "*.tscn",
+            "name": "Empty lines",
+            "start": "^\\s*$",
+            "delete": "::line::"
+        }
+    ]
+}

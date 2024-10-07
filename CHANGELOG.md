@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-10-07
+
+- Breaking: removed support for '.maidignore' files, now use 'maid.json' instead.
+- Added support for reading 'maid.json' file.
+- Added support for rules in 'maid.json' file.
+- Updated README.md with new usage instructions.
+
 ## [0.2.1] - 2024-10-07
 
 - Enhanced markdown output with better formatting for filenames.

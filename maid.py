@@ -7,16 +7,35 @@ Author: Fabio Rotondo
 License: MIT License
 """
 
+"""
+Example of rules:
+
+    "rules": [
+        {
+            "pattern": "*.tscn",
+            "name": "subres RectangleShape",
+            "match": ".sub_resource.*type=.RectangleShape",
+            "delete": "::empty::"
+        }
+    ]
+
+The rule above will apply only on files with extension '.tscn' and will remove all lines
+from the content from the one starting with RegEx '.sub_resource.*type=.RectangleShape',
+up to the first empty line.
+"""
+
 
 import argparse
+import json
 import os
 import mimetypes
 import logging
+import re
 import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.2.1"
+VERSION = "0.3.0"
 
 # default blacklist
 BLACKLIST = [
@@ -24,7 +43,7 @@ BLACKLIST = [
     ".gitignore",
     ".gitattributes",
     ".gitsubmodules",
-    ".maidignore",
+    "maid.json",
     "__pycache__",
     "*.log",
     "LICENSE",
@@ -93,7 +112,67 @@ def is_binary(file_path):
         return True
 
 
-def process_file(file_path, markdown_content):
+def _apply_rules(file_name, content, rules):
+    import fnmatch
+    import re
+    import logging
+
+    for rule in rules:
+        if fnmatch.fnmatch(file_name, rule["pattern"]):
+            logging.info(f"Applying rule: {rule['name']} to {file_name}")
+
+            match_regex = re.compile(rule["start"])
+            delete_pattern = rule["delete"]
+            delete_regex = re.compile(delete_pattern)
+            keep_match = rule.get("keep_start", False)
+            indices_to_delete = []
+
+            i = 0
+            while i < len(content):
+                line = content[i]
+                if match_regex.search(line):
+                    # print("=== START MATCH: ", line)
+                    if keep_match:
+                        start = i + 1
+                    else:
+                        start = i
+
+                    end = None
+                    j = start
+
+                    if delete_pattern == "::line::":
+                        end = start
+                    else:
+                        while j < len(content):
+                            delete_line = content[j]
+                            if (
+                                delete_pattern == "::empty::"
+                                and not delete_line.strip()
+                            ):
+                                end = j
+                                break
+                            if delete_regex.search(delete_line):
+                                # print("=== END MATCH: ", delete_line)
+                                end = j
+                                break
+                            j += 1
+                    if end is None:
+                        end = len(content) - 1
+                    indices_to_delete.append((start, end))
+                    i = end + 1
+                else:
+                    i += 1
+
+            for start, end in reversed(indices_to_delete):
+                # logging.info(f"Deleting lines {start} to {end} in {file_name}")
+                del content[start : end + 1]
+
+            open(f"/ramdisk/step-{rule['name']}.txt", "w").write("".join(content))
+
+    return "".join(content)
+
+
+def process_file(file_path, markdown_content, rules):
     """
     Process a single file and add its content to the markdown.
     """
@@ -108,8 +187,9 @@ def process_file(file_path, markdown_content):
     else:
         logging.info(f"Processing file: {file_path}")
 
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            content = f.read()
+        content = open(file_path, "r", encoding="utf-8", errors="ignore").readlines()
+
+        content = _apply_rules(file_path, content, rules)
 
         ext = _ext2markdown(file_path)
         markdown_content.append(("-" * 40) + "\n\n")
@@ -130,32 +210,35 @@ def is_blacklisted(file_path, blacklist):
     return any(fnmatch.fnmatch(filename, pattern) for pattern in blacklist)
 
 
-def load_maidignore(directory):
+def load_maid_conf(directory, blacklist, rules):
     """
-    Load .maidignore file from a directory.
+    Load maid.json file from a directory.
     """
-    maidignore_path = os.path.join(directory, ".maidignore")
-    if os.path.exists(maidignore_path):
-        logging.info(f"Found .maidignore in {directory}")
-        with open(maidignore_path, "r") as f:
-            return [
-                line.strip() for line in f if line.strip() and not line.startswith("#")
-            ]
-    return []
+    maid_conf_path = os.path.join(directory, "maid.json")
+    if os.path.exists(maid_conf_path):
+        logging.info(f"Found maid.json in {directory}")
+
+        dct = json.loads(open(maid_conf_path, "r").read())
+        if "patterns" in dct:
+            blacklist.extend(dct["patterns"])
+        if "rules" in dct:
+            rules.extend(dct["rules"])
 
 
-def scan_directory(directory, markdown_content, global_blacklist):
+def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     """
     Recursively scan a directory and process all files.
     """
+    rules = global_rules.copy()
     blacklist = global_blacklist.copy()
-    mi = load_maidignore(directory)
-    blacklist.extend(mi)
+
+    # load_maid_conf(directory, blacklist, rules)
+
     for root, dirs, files in os.walk(directory):
         local_blacklist = blacklist.copy()
+        local_rules = rules.copy()
 
-        mi = load_maidignore(root)
-        local_blacklist.extend(mi)
+        load_maid_conf(root, local_blacklist, local_rules)
 
         # Filter out blacklisted directories
         dirs[:] = [d for d in dirs if not is_blacklisted(d, local_blacklist)]
@@ -163,38 +246,31 @@ def scan_directory(directory, markdown_content, global_blacklist):
         for file in files:
             file_path = os.path.join(root, file)
             if not is_blacklisted(file_path, local_blacklist):
-                process_file(file_path, markdown_content)
+                process_file(file_path, markdown_content, local_rules)
             else:
                 logging.info(f"Skipped blacklisted file: {file_path}")
 
 
-def load_blacklist(blacklist_file):
-    """
-    Load blacklist from a file.
-    """
-    with open(blacklist_file, "r") as f:
-        return [line.strip() for line in f if line.strip() and not line.startswith("#")]
-
-
-def _blacklist_init(args):
+def _maid_init(args):
+    rules = []
     blacklist = args.blacklist
 
-    if args.blacklist_file:
-        blacklist.extend(load_blacklist(args.blacklist_file))
+    if args.maid_file:
+        load_maid_conf(args.maid_file, blacklist, rules)
 
-    # load global blacklist from home directory '.maidignore' if exists
+    # load global blacklist from home directory '.maid.json' if exists
     home = str(Path.home())
     dirs = [
         home,
-        os.path.join(home, ".maid"),
-        os.path.join(home, ".local", "share", "maid"),
-        os.path.join(home, ".config", "maid"),
+        os.path.join(home, ".maid.json"),
+        os.path.join(home, ".local", "share", "maid.json"),
+        os.path.join(home, ".config", "maid.json"),
     ]
-    for d in dirs:
-        global_blacklist = load_maidignore(d)
-        blacklist.extend(global_blacklist)
 
-    return blacklist
+    for d in dirs:
+        load_maid_conf(d, blacklist, rules)
+
+    return blacklist, rules
 
 
 def main():
@@ -216,7 +292,9 @@ def main():
         help="Glob patterns for files or directories to skip (matched against filename only)",
     )
     parser.add_argument(
-        "--blacklist-file", help="File containing blacklist glob patterns"
+        "--maid-file",
+        help="File containing Maid configuration (maid.json)",
+        default="maid.json",
     )
 
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
@@ -230,7 +308,10 @@ def main():
             format="%(asctime)s - %(levelname)s - %(message)s",
         )
 
-    blacklist = _blacklist_init(args)
+    blacklist = []
+    rules = []
+
+    blacklist, rules = _maid_init(args)
 
     logging.info(f"Blacklist patterns: {blacklist}")
 
@@ -242,11 +323,11 @@ def main():
     for path in args.paths:
         if os.path.isdir(path):
             logging.info(f"Scanning directory: {path}")
-            scan_directory(path, markdown_content, blacklist)
+            scan_directory(path, markdown_content, blacklist, rules)
         elif os.path.isfile(path):
             if not is_blacklisted(path, blacklist):
                 logging.info(f"Processing file: {path}")
-                process_file(path, markdown_content)
+                process_file(path, markdown_content, rules)
             else:
                 logging.info(f"Skipped blacklisted file: {path}")
         else:
