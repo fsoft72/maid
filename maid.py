@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 # default blacklist
 BLACKLIST = [
@@ -114,7 +114,6 @@ def is_binary(file_path):
 
 def _apply_rules(file_name, content, rules):
     import fnmatch
-    import re
     import logging
 
     for rule in rules:
@@ -232,8 +231,6 @@ def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     rules = global_rules.copy()
     blacklist = global_blacklist.copy()
 
-    # load_maid_conf(directory, blacklist, rules)
-
     for root, dirs, files in os.walk(directory):
         local_blacklist = blacklist.copy()
         local_rules = rules.copy()
@@ -323,7 +320,12 @@ def main():
     for path in args.paths:
         if os.path.isdir(path):
             logging.info(f"Scanning directory: {path}")
-            scan_directory(path, markdown_content, blacklist, rules)
+            _blacklist = blacklist.copy()
+            _rules = rules.copy()
+
+            load_maid_conf(path, _blacklist, _rules)
+
+            scan_directory(path, markdown_content, _blacklist, _rules)
         elif os.path.isfile(path):
             if not is_blacklisted(path, blacklist):
                 logging.info(f"Processing file: {path}")

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2024-10-07
+
+- Fixed issue with reading global `maid.json` file.
+- Removed some linter warnings.
+
 ## [0.3.0] - 2024-10-07
 
 - Breaking: removed support for '.maidignore' files, now use 'maid.json' instead.
