@@ -1,6 +1,9 @@
 # MAID - `M`arkdown `AI` `D`oc creator
 
-`maid` is a Python script that aggregates content from directories and files into a single Markdown file.
+`maid` is a Python script that aggregates content from directories and files into a single Markdown file, especially useful for creating documentation for augmenting Artificial Intelligence services like [Claude3](https://claude.ai), [ChatGPT](https://chatgpt.com), and [Github Copilot](https://github.com/features/copilot).
+
+The creation of special _rules_ helps developer to filter text files and remove unwanted content from the output, reducing the need for manual editing and the total size of the output file (less tokens, less cost).
+
 It is very powerful and flexible, with support for:
 
 - blacklisting files and directories
@@ -149,6 +152,43 @@ A rule is defined by a dictionary with the following keys:
 - `keep_start`: A boolean value to keep the start line matched in the output.
 
 Rules are applied only if the pattern matches the file name and they are applied in the order they are defined in the `rules` section.
+
+### Useful Rules
+
+Here are some useful rules that can be used to filter text files:
+
+- Remove all single line comments from files
+
+  ```json
+  {
+    "name": "Remove single line comments",
+    "pattern": "*.*",
+    "start": "^\\s*//.*",
+    "delete": "::line::"
+  }
+  ```
+
+- Remove all `<style>` blocks from Svelte files
+
+  ```json
+  {
+    "name": "Remove style blocks",
+    "pattern": "*.svelte",
+    "start": "<style>",
+    "delete": "</style>"
+  }
+  ```
+
+- Remove all empty lines from the file (run this as the latest rule)
+
+  ```json
+  {
+    "name": "Remove empty lines",
+    "pattern": "*.*",
+    "start": "^\\s*$",
+    "delete": "::line::"
+  }
+  ```
 
 ## Logging
 
