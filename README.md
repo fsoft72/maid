@@ -1,6 +1,9 @@
 # MAID - `M`arkdown `AI` `D`oc creator
 
-`maid` is a Python script that aggregates content from directories and files into a single Markdown file.
+`maid` is a Python script that aggregates content from directories and files into a single Markdown file, especially useful for creating documentation for augmenting Artificial Intelligence services like [Claude3](https://claude.ai), [ChatGPT](https://chatgpt.com), and [Github Copilot](https://github.com/features/copilot).
+
+The creation of special _rules_ helps developer to filter text files and remove unwanted content from the output, reducing the need for manual editing and the total size of the output file (less tokens, less cost).
+
 It is very powerful and flexible, with support for:
 
 - blacklisting files and directories
