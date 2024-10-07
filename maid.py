@@ -16,11 +16,15 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 # default blacklist
 BLACKLIST = [
     ".git",
+    ".gitignore",
+    ".gitattributes",
+    ".gitsubmodules",
+    ".maidignore",
     "__pycache__",
     "*.log",
     "LICENSE",
@@ -82,10 +86,10 @@ def is_binary(file_path):
     Check if a file is binary.
     """
     try:
-        with open(file_path, "tr") as check_file:
+        with open(file_path, "rt") as check_file:
             check_file.read()
             return False
-    except (IOError, OSError):
+    except (IOError, OSError, UnicodeDecodeError):
         return True
 
 
@@ -98,9 +102,9 @@ def process_file(file_path, markdown_content):
         file_type = mimetypes.guess_type(file_path)[0] or "Unknown"
         file_size = file_path.stat().st_size
         markdown_content.append(("-" * 40) + "\n")
-        markdown_content.append(f"## FILE: {file_path}\n")
-        markdown_content.append(f"- Type: {file_type}\n")
-        markdown_content.append(f"- Size: {file_size} bytes\n\n")
+        markdown_content.append(
+            f"## FILE: `{file_path}` - Type: {file_type} - Size: {file_size} bytes\n"
+        )
     else:
         logging.info(f"Processing file: {file_path}")
 
@@ -109,7 +113,7 @@ def process_file(file_path, markdown_content):
 
         ext = _ext2markdown(file_path)
         markdown_content.append(("-" * 40) + "\n\n")
-        markdown_content.append(f"## FILE: {file_path}\n\n")
+        markdown_content.append(f"## FILE: `{file_path}`\n\n")
         markdown_content.append("```%s\n" % ext)
         if ext == "markdown":
             content = content.replace("```", "'''")
@@ -144,10 +148,14 @@ def scan_directory(directory, markdown_content, global_blacklist):
     """
     Recursively scan a directory and process all files.
     """
+    blacklist = global_blacklist.copy()
+    mi = load_maidignore(directory)
+    blacklist.extend(mi)
     for root, dirs, files in os.walk(directory):
-        local_blacklist = global_blacklist.copy()
+        local_blacklist = blacklist.copy()
 
-        local_blacklist.extend(load_maidignore(root))
+        mi = load_maidignore(root)
+        local_blacklist.extend(mi)
 
         # Filter out blacklisted directories
         dirs[:] = [d for d in dirs if not is_blacklisted(d, local_blacklist)]

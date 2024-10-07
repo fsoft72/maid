@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2024-10-07
+
+- Enhanced markdown output with better formatting for filenames.
+- Enhanced markdown output for binary files.
+- Fixed issue with reading global `.maidignore` file.
+- Fixed issue with reading local `.maidignore` file.
+- Fixed is_binary() exception on special files.
+
 ## [0.2.0] - 2024-10-05
 
 - Added support for reading local `.maidignore` files.
