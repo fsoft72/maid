@@ -52,6 +52,8 @@ BLACKLIST = [
     "*.old",
 ]
 
+_loaded_confs = {}
+
 
 def _ext2markdown(fname):
     ext = os.path.splitext(fname)[1]
@@ -182,7 +184,7 @@ def _apply_rules(file_name, content, rules):
                 # logging.info(f"Deleting lines {start} to {end} in {file_name}")
                 del content[start : end + 1]
 
-            open(f"/ramdisk/step-{rule['name']}.txt", "w").write("".join(content))
+            # open(f"/ramdisk/step-{rule['name']}.txt", "w").write("".join(content))
 
     return "".join(content)
 
@@ -244,6 +246,11 @@ def load_maid_conf(directory, blacklist, rules):
     if not p:
         return
 
+    if maid_conf_path in _loaded_confs:
+        return
+
+    _loaded_confs[maid_conf_path] = True
+
     dct = json.loads(open(p, "r").read())
     if "patterns" in dct:
         blacklist.extend(dct["patterns"])
@@ -255,24 +262,50 @@ def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     """
     Recursively scan a directory and process all files.
     """
-    rules = global_rules.copy()
+    import os
+    import logging
+
+    # Copy global blacklist and rules to local variables
     blacklist = global_blacklist.copy()
+    rules = global_rules.copy()
 
-    for root, dirs, files in os.walk(directory):
-        local_blacklist = blacklist.copy()
-        local_rules = rules.copy()
+    # Load local configuration
+    load_maid_conf(directory, blacklist, rules)
 
-        load_maid_conf(root, local_blacklist, local_rules)
+    logging.info(f"Scanning directory: {directory}")
 
-        # Filter out blacklisted directories
-        dirs[:] = [d for d in dirs if not is_blacklisted(d, local_blacklist)]
+    try:
+        entries = os.listdir(directory)
+    except PermissionError:
+        logging.warning(f"Permission denied: {directory}")
+        return
 
-        for file in files:
-            file_path = os.path.join(root, file)
-            if not is_blacklisted(file_path, local_blacklist):
-                process_file(file_path, markdown_content, local_rules)
-            else:
-                logging.info(f"Skipped blacklisted file: {file_path}")
+    files = []
+    subdirs = []
+
+    # Separate files and directories
+    for entry in entries:
+        full_path = os.path.join(directory, entry)
+        if os.path.isfile(full_path):
+            files.append(entry)
+        elif os.path.isdir(full_path):
+            subdirs.append(entry)
+
+    # Process files in the current directory
+    for file in files:
+        file_path = os.path.join(directory, file)
+        if not is_blacklisted(file_path, blacklist):
+            process_file(file_path, markdown_content, rules)
+        else:
+            logging.info(f"Skipped blacklisted file: {file_path}")
+
+    # Recursively process subdirectories
+    for subdir in subdirs:
+        subdir_path = os.path.join(directory, subdir)
+        if not is_blacklisted(subdir_path, blacklist):
+            scan_directory(subdir_path, markdown_content, blacklist, rules)
+        else:
+            logging.info(f"Skipped blacklisted directory: {subdir_path}")
 
 
 def _maid_init(args):
