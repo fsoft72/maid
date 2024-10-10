@@ -1,0 +1,39 @@
+{
+    "patterns": [
+        "test",
+        "mediamanager",
+        "tag",
+        "category",
+        "static",
+        ".svelte-kit",
+        "node_modules",
+        "work",
+        "TableEditor2.svelte",
+        "*.css",
+        "*.md",
+        ".*",
+        "*.config.*",
+        "*-lock*",
+        "*.d.ts"
+    ],
+    "rules": [
+        {
+            "name": "No Styles",
+            "pattern": "*.svelte",
+            "start": "<style",
+            "delete": "<.style>"
+        },
+        {
+            "name": "Theme",
+            "pattern": "*/theme.ts",
+            "start": "const injectColors",
+            "delete": "^};$"
+        },
+        {
+            "name": "Empty lines TS",
+            "pattern": "*.*",
+            "start": "^$",
+            "delete": "::line::"
+        }
+    ]
+}

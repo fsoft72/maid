@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2024-10-10
+
+- Enhanced: support for both `maid.json` and `.maid.json` files.
+- Fixed issue with `maid.json` file not being read in subdirectories.
+- Add: svelte section in tests directory
+
 ## [0.3.1] - 2024-10-07
 
 - Fixed issue with reading global `maid.json` file.

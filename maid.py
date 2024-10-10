@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 # default blacklist
 BLACKLIST = [
@@ -52,6 +52,8 @@ BLACKLIST = [
     "*.old",
 ]
 
+_loaded_confs = {}
+
 
 def _ext2markdown(fname):
     ext = os.path.splitext(fname)[1]
@@ -61,6 +63,7 @@ def _ext2markdown(fname):
         ".sh": "bash",
         ".js": "javascript",
         ".json": "json",
+        ".svelte": "svelte",
         ".html": "html",
         ".css": "css",
         ".md": "markdown",
@@ -116,7 +119,22 @@ def _apply_rules(file_name, content, rules):
     import fnmatch
     import logging
 
+    do_debug = False
+    """
+    if str(file_name).endswith("theme.ts"):
+        print("=== FILE: ", file_name, rules)
+        do_debug = True
+    """
+
     for rule in rules:
+        if do_debug:
+            print(
+                "=== RULE: ",
+                file_name,
+                rule["name"],
+                rule["pattern"],
+                fnmatch.fnmatch(file_name, rule["pattern"]),
+            )
         if fnmatch.fnmatch(file_name, rule["pattern"]):
             logging.info(f"Applying rule: {rule['name']} to {file_name}")
 
@@ -166,7 +184,7 @@ def _apply_rules(file_name, content, rules):
                 # logging.info(f"Deleting lines {start} to {end} in {file_name}")
                 del content[start : end + 1]
 
-            open(f"/ramdisk/step-{rule['name']}.txt", "w").write("".join(content))
+            # open(f"/ramdisk/step-{rule['name']}.txt", "w").write("".join(content))
 
     return "".join(content)
 
@@ -214,38 +232,80 @@ def load_maid_conf(directory, blacklist, rules):
     Load maid.json file from a directory.
     """
     maid_conf_path = os.path.join(directory, "maid.json")
+    hidden_conf_path = os.path.join(directory, ".maid.json")
+    p = None
+
     if os.path.exists(maid_conf_path):
         logging.info(f"Found maid.json in {directory}")
+        p = maid_conf_path
 
-        dct = json.loads(open(maid_conf_path, "r").read())
-        if "patterns" in dct:
-            blacklist.extend(dct["patterns"])
-        if "rules" in dct:
-            rules.extend(dct["rules"])
+    elif os.path.exists(hidden_conf_path):
+        logging.info(f"Found .maid.json in {directory}")
+        p = hidden_conf_path
+
+    if not p:
+        return
+
+    if maid_conf_path in _loaded_confs:
+        return
+
+    _loaded_confs[maid_conf_path] = True
+
+    dct = json.loads(open(p, "r").read())
+    if "patterns" in dct:
+        blacklist.extend(dct["patterns"])
+    if "rules" in dct:
+        rules.extend(dct["rules"])
 
 
 def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     """
     Recursively scan a directory and process all files.
     """
-    rules = global_rules.copy()
+    import os
+    import logging
+
+    # Copy global blacklist and rules to local variables
     blacklist = global_blacklist.copy()
+    rules = global_rules.copy()
 
-    for root, dirs, files in os.walk(directory):
-        local_blacklist = blacklist.copy()
-        local_rules = rules.copy()
+    # Load local configuration
+    load_maid_conf(directory, blacklist, rules)
 
-        load_maid_conf(root, local_blacklist, local_rules)
+    logging.info(f"Scanning directory: {directory}")
 
-        # Filter out blacklisted directories
-        dirs[:] = [d for d in dirs if not is_blacklisted(d, local_blacklist)]
+    try:
+        entries = os.listdir(directory)
+    except PermissionError:
+        logging.warning(f"Permission denied: {directory}")
+        return
 
-        for file in files:
-            file_path = os.path.join(root, file)
-            if not is_blacklisted(file_path, local_blacklist):
-                process_file(file_path, markdown_content, local_rules)
-            else:
-                logging.info(f"Skipped blacklisted file: {file_path}")
+    files = []
+    subdirs = []
+
+    # Separate files and directories
+    for entry in entries:
+        full_path = os.path.join(directory, entry)
+        if os.path.isfile(full_path):
+            files.append(entry)
+        elif os.path.isdir(full_path):
+            subdirs.append(entry)
+
+    # Process files in the current directory
+    for file in files:
+        file_path = os.path.join(directory, file)
+        if not is_blacklisted(file_path, blacklist):
+            process_file(file_path, markdown_content, rules)
+        else:
+            logging.info(f"Skipped blacklisted file: {file_path}")
+
+    # Recursively process subdirectories
+    for subdir in subdirs:
+        subdir_path = os.path.join(directory, subdir)
+        if not is_blacklisted(subdir_path, blacklist):
+            scan_directory(subdir_path, markdown_content, blacklist, rules)
+        else:
+            logging.info(f"Skipped blacklisted directory: {subdir_path}")
 
 
 def _maid_init(args):
@@ -257,12 +317,7 @@ def _maid_init(args):
 
     # load global blacklist from home directory '.maid.json' if exists
     home = str(Path.home())
-    dirs = [
-        home,
-        os.path.join(home, ".maid.json"),
-        os.path.join(home, ".local", "share", "maid.json"),
-        os.path.join(home, ".config", "maid.json"),
-    ]
+    dirs = [home, os.path.join(home, ".local", "share"), os.path.join(home, ".config")]
 
     for d in dirs:
         load_maid_conf(d, blacklist, rules)
