@@ -12,10 +12,20 @@ It is very powerful and flexible, with support for:
 
 Configuration can be keept in a `maid.json` file in the root directory of the project and even modified in subdirectories using a `maid.json` file that is only applied to that directory and its subdirectories.
 
+## Installation
+
+`maid` requires Python 3.6 or later.
+
+Install from PyPI:
+
+```bash
+pip install fsoft_maid
+```
+
 ## Usage
 
 ```bash
-./maid.py [OPTIONS] PATHS...
+maid [OPTIONS] PATHS...
 ```
 
 ### Options
