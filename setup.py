@@ -3,18 +3,18 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="maid",
-    version="0.3.3",
+    name="fsoft-maid",
+    version="0.3.5",
     description="Markdown AI Doc creator",
     author="Fabio Rotondo",
     author_email="fsoft.devel@gmail.com",
     url="https://github.com/fsoft72/maid",
     license="MIT",
     packages=find_packages(),
-    py_modules=["maid"],
+    py_modules=["fsoft_maid"],
     entry_points={
         "console_scripts": [
-            "maid=maid:main",
+            "maid=fsoft_maid:main",
         ],
     },
     install_requires=[
