@@ -1,3 +1,4 @@
 _content.md
 dist
 *.egg-info
+venv
