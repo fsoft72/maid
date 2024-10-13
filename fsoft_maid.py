@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.5"
+VERSION = "0.3.6"
 
 # default blacklist
 BLACKLIST = [

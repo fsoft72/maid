@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 
 from setuptools import setup, find_packages
+from pathlib import Path
+
+# Read the contents of README.md
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="fsoft-maid",
-    version="0.3.5",
+    version="0.3.6",
     description="Markdown AI Doc creator",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Fabio Rotondo",
     author_email="fsoft.devel@gmail.com",
     url="https://github.com/fsoft72/maid",

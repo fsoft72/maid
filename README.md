@@ -34,6 +34,7 @@ maid [OPTIONS] PATHS...
 - `--log`: Enable logging to stdout.
 - `--blacklist`: Glob patterns for files or directories to skip (matched against filename only). This option can be used multiple times.
 - `--maid-file`: File containing `maid` configuration (default: `maid.json` in the current directory).
+- `--verbose`: Display some extra information.
 - `--version`: Display the version.
 
 ### Arguments
@@ -47,7 +48,7 @@ maid [OPTIONS] PATHS...
 To aggregate content from the `src` directory into `output.md`:
 
 ```bash
-./maid.py -o output.md src
+./maid -o output.md src
 ```
 
 ### Enable Logging
@@ -55,7 +56,7 @@ To aggregate content from the `src` directory into `output.md`:
 To enable logging:
 
 ```bash
-./maid.py -o output.md --log src
+./maid -o output.md --log src
 ```
 
 ### Using Blacklist Patterns
@@ -63,7 +64,7 @@ To enable logging:
 To skip certain files or directories:
 
 ```bash
-./maid.py -o output.md --blacklist "*.log" --blacklist "__pycache__" src
+./maid -o output.md --blacklist "*.log" --blacklist "__pycache__" src
 ```
 
 ### Using a Maid configuration File
@@ -71,7 +72,7 @@ To skip certain files or directories:
 To use a blacklist file:
 
 ```bash
-./maid.py -o output.md --maid-file maid-special.json src
+./maid -o output.md --maid-file maid-special.json src
 ```
 
 ### Reading Global and Local maid.json Files
