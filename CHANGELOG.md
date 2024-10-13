@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - [wip]
+
+- Add: `--verbose` option to display more information.
+- Add: optional output of all included files in markdown output.
+
 ## [0.3.2] - 2024-10-10
 
 - Enhanced: support for both `maid.json` and `.maid.json` files.

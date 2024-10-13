@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 
 # default blacklist
 BLACKLIST = [
@@ -53,6 +53,7 @@ BLACKLIST = [
 ]
 
 _loaded_confs = {}
+_files_included = []
 
 
 def _ext2markdown(fname):
@@ -193,6 +194,7 @@ def process_file(file_path, markdown_content, rules):
     """
     Process a single file and add its content to the markdown.
     """
+    _files_included.append(file_path)
     file_path = Path(file_path)
     if is_binary(file_path):
         file_type = mimetypes.guess_type(file_path)[0] or "Unknown"
@@ -337,6 +339,7 @@ def main():
         default="_content.md",
     )
     parser.add_argument("--log", action="store_true", help="Enable logging")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
     parser.add_argument(
         "--blacklist",
         action="append",
@@ -394,6 +397,11 @@ def main():
         f.write("".join(markdown_content))
 
     logging.info(f"Markdown file created: {args.output}")
+
+    if args.verbose:
+        print("=== Included files: ")
+        for f in _files_included:
+            print(f)
 
 
 if __name__ == "__main__":
