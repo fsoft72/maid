@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.7"
+VERSION = "0.3.8"
 
 # default blacklist
 BLACKLIST = [
@@ -231,11 +231,19 @@ def _apply_rules(file_name, content, rules):
     return "".join(content)
 
 
+def is_file_empty(content):
+    """
+    Check if file content is empty or contains only whitespace.
+    """
+    if not content:
+        return True
+    return not any(line.strip() for line in content)
+
+
 def process_file(file_path, markdown_content, rules):
     """
     Process a single file and add its content to the markdown.
     """
-    _files_included.append(file_path)
     file_path = Path(file_path)
     if is_binary(file_path):
         file_type = mimetypes.guess_type(file_path)[0] or "Unknown"
@@ -260,8 +268,14 @@ def process_file(file_path, markdown_content, rules):
                     ).readlines()
         except Exception as e:
             logging.warning(f"Error reading file {file_path}: {e}")
-            content = []
+            return
 
+        # Skip empty files
+        if is_file_empty(content):
+            logging.info(f"Skipping empty file: {file_path}")
+            return
+
+        _files_included.append(file_path)
         content = _apply_rules(file_path, content, rules)
 
         ext = _ext2markdown(file_path)
