@@ -9,7 +9,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="fsoft-maid",
-    version="0.3.6",
+    version="0.3.7",
     description="Markdown AI Doc creator",
     long_description=long_description,
     long_description_content_type="text/markdown",

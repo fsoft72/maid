@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2024-11-16
+
+- Add: `--profile` option to add global rules
+- Add: `--verbose` option to show rules and patterns used.
+- Enhanced: ensure that rules are loaded only once.
+- Enhanced: better handling of UTF-16 files.
+
 ## [0.3.6] - 2024-10-13
 
 - Add: created the `fsoft-maid` [PyPI package](https://pypi.org/project/fsoft-maid/).

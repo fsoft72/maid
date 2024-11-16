@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.6"
+VERSION = "0.3.7"
 
 # default blacklist
 BLACKLIST = [
@@ -54,6 +54,40 @@ BLACKLIST = [
 
 _loaded_confs = {}
 _files_included = []
+
+PROFILES = {
+    "c#": {
+        "patterns": [
+            "*.csproj",
+            "*.user",
+            "*.xaml",
+            "*.xml",
+            "*.css",
+            "*.xslt",
+            "*.json",
+            "*.dll",
+            "*.csproj.*",
+            "*.png",
+            "*.trdp",
+            "*.targets",
+            "*.props",
+            "*.jpg",
+            "*.jpeg",
+            "*.cache",
+            "*.editorconfig",
+            "Debug",
+            "obj",
+            "*.vsidx",
+            "*.lock",
+            "*.v2",
+            "*.suo",
+            "Release",
+            "*.ico",
+            "*.licx",
+        ]
+    },
+    "no-images": {"patterns": ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.ico"]},
+}
 
 
 def _ext2markdown(fname):
@@ -249,6 +283,32 @@ def is_blacklisted(file_path, blacklist):
     return any(fnmatch.fnmatch(filename, pattern) for pattern in blacklist)
 
 
+def _extend_unique(target_list, new_items, key_func=None):
+    """
+    Extend a list with new items, avoiding duplicates.
+    For rules, key_func should return the rule's unique identifier (name).
+    For patterns, key_func is None and items are compared directly.
+    """
+    if not new_items:
+        return
+
+    if key_func is None:
+        # For simple items like patterns
+        existing = set(target_list)
+        for item in new_items:
+            if item not in existing:
+                target_list.append(item)
+                existing.add(item)
+    else:
+        # For complex items like rules
+        existing = {key_func(item) for item in target_list}
+        for item in new_items:
+            key = key_func(item)
+            if key not in existing:
+                target_list.append(item)
+                existing.add(key)
+
+
 def load_maid_conf(directory, blacklist, rules):
     """
     Load maid.json file from a directory.
@@ -275,9 +335,9 @@ def load_maid_conf(directory, blacklist, rules):
 
     dct = json.loads(open(p, "r").read())
     if "patterns" in dct:
-        blacklist.extend(dct["patterns"])
+        _extend_unique(blacklist, dct["patterns"])
     if "rules" in dct:
-        rules.extend(dct["rules"])
+        _extend_unique(rules, dct["rules"], lambda x: x["name"])
 
 
 def scan_directory(directory, markdown_content, global_blacklist, global_rules):
@@ -334,6 +394,18 @@ def _maid_init(args):
     rules = []
     blacklist = args.blacklist
 
+    # Handle profiles first
+    if args.profile:
+        for profile_name in args.profile:
+            if profile_name in PROFILES:
+                profile = PROFILES[profile_name]
+                if "patterns" in profile:
+                    _extend_unique(blacklist, profile["patterns"])
+                if "rules" in profile:
+                    _extend_unique(rules, profile["rules"], lambda x: x["name"])
+            else:
+                logging.warning(f"Profile '{profile_name}' not found")
+
     if args.maid_file:
         load_maid_conf(args.maid_file, blacklist, rules)
 
@@ -345,6 +417,22 @@ def _maid_init(args):
         load_maid_conf(d, blacklist, rules)
 
     return blacklist, rules
+
+
+def _dump_conf(blacklist, rules):
+    print("\n=== Active Patterns ===")
+    for pattern in blacklist:
+        print(f"- {pattern}")
+
+    print("\n=== Active Rules ===")
+    for rule in rules:
+        print(f"- {rule['name']}")
+        print(f"  Pattern: {rule['pattern']}")
+        print(f"  Start: {rule['start']}")
+        print(f"  Delete: {rule['delete']}")
+        if "keep_start" in rule:
+            print(f"  Keep Start: {rule['keep_start']}")
+        print()
 
 
 def main():
@@ -371,6 +459,11 @@ def main():
         help="File containing Maid configuration (maid.json)",
         default="maid.json",
     )
+    parser.add_argument(
+        "--profile",
+        action="append",
+        help="Load settings from predefined profile (can be used multiple times)",
+    )
 
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
 
@@ -387,6 +480,9 @@ def main():
     rules = []
 
     blacklist, rules = _maid_init(args)
+
+    if args.verbose:
+        _dump_conf(blacklist, rules)
 
     logging.info(f"Blacklist patterns: {blacklist}")
 
@@ -419,7 +515,7 @@ def main():
     logging.info(f"Markdown file created: {args.output}")
 
     if args.verbose:
-        print("=== Included files: ")
+        print("\n=== Included files: ")
         for f in _files_included:
             print(f)
 
