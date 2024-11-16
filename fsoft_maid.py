@@ -106,9 +106,16 @@ def _ext2markdown(fname):
 
 def is_binary(file_path):
     """
-    Check if a file is binary.
+    Check if a file is binary, handling UTF-16 files with BOM.
     """
     try:
+        # Check first few bytes for UTF-16 BOM
+        with open(file_path, "rb") as check_file:
+            header = check_file.read(2)
+            if header.startswith(b"\xfe\xff") or header.startswith(b"\xff\xfe"):
+                return False
+
+        # Try reading as regular text
         with open(file_path, "rt") as check_file:
             check_file.read()
             return False
@@ -206,7 +213,20 @@ def process_file(file_path, markdown_content, rules):
     else:
         logging.info(f"Processing file: {file_path}")
 
-        content = open(file_path, "r", encoding="utf-8", errors="ignore").readlines()
+        # Try reading with UTF-16 first if it has BOM
+        try:
+            with open(file_path, "rb") as f:
+                header = f.read(2)
+                f.seek(0)
+                if header.startswith(b"\xfe\xff") or header.startswith(b"\xff\xfe"):
+                    content = open(file_path, "r", encoding="utf-16").readlines()
+                else:
+                    content = open(
+                        file_path, "r", encoding="utf-8", errors="ignore"
+                    ).readlines()
+        except Exception as e:
+            logging.warning(f"Error reading file {file_path}: {e}")
+            content = []
 
         content = _apply_rules(file_path, content, rules)
 
