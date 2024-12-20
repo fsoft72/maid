@@ -289,10 +289,18 @@ def process_file(file_path, markdown_content, rules):
         markdown_content.append("```\n\n")
 
 
-def is_blacklisted(file_path, blacklist):
+def is_blacklisted(file_path, blacklist, dirs):
     """
-    Check if a file matches any of the blacklist patterns.
+    Check if a file or diretcory name matches any of the blacklist patterns.
     """
+    # check if file_path is a directory
+    if os.path.isdir(file_path):
+        dirname = file_path
+        print("=== CHECK: ", dirname, dirs)
+        if dirname in dirs:
+            print("=== DIRNAME: ", dirname, file_path)
+            return True
+
     filename = os.path.basename(file_path)
     return any(fnmatch.fnmatch(filename, pattern) for pattern in blacklist)
 
@@ -323,7 +331,7 @@ def _extend_unique(target_list, new_items, key_func=None):
                 existing.add(key)
 
 
-def load_maid_conf(directory, blacklist, rules):
+def load_maid_conf(directory, list_blacklist, list_rules, list_dirs):
     """
     Load maid.json file from a directory.
     """
@@ -349,12 +357,16 @@ def load_maid_conf(directory, blacklist, rules):
 
     dct = json.loads(open(p, "r").read())
     if "patterns" in dct:
-        _extend_unique(blacklist, dct["patterns"])
+        _extend_unique(list_blacklist, dct["patterns"])
     if "rules" in dct:
-        _extend_unique(rules, dct["rules"], lambda x: x["name"])
+        _extend_unique(list_rules, dct["rules"], lambda x: x["name"])
+    if "dirs" in dct:
+        _extend_unique(list_dirs, dct["dirs"])
 
 
-def scan_directory(directory, markdown_content, global_blacklist, global_rules):
+def scan_directory(
+    directory, markdown_content, global_blacklist, global_rules, global_dirs
+):
     """
     Recursively scan a directory and process all files.
     """
@@ -362,11 +374,12 @@ def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     import logging
 
     # Copy global blacklist and rules to local variables
-    blacklist = global_blacklist.copy()
-    rules = global_rules.copy()
+    list_blacklist = global_blacklist.copy()
+    list_dirs = global_dirs.copy()
+    list_rules = global_rules.copy()
 
     # Load local configuration
-    load_maid_conf(directory, blacklist, rules)
+    load_maid_conf(directory, list_blacklist, list_rules, list_dirs)
 
     logging.info(f"Scanning directory: {directory}")
 
@@ -390,16 +403,18 @@ def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     # Process files in the current directory
     for file in files:
         file_path = os.path.join(directory, file)
-        if not is_blacklisted(file_path, blacklist):
-            process_file(file_path, markdown_content, rules)
+        if not is_blacklisted(file_path, list_blacklist, list_dirs):
+            process_file(file_path, markdown_content, list_rules)
         else:
             logging.info(f"Skipped blacklisted file: {file_path}")
 
     # Recursively process subdirectories
     for subdir in subdirs:
         subdir_path = os.path.join(directory, subdir)
-        if not is_blacklisted(subdir_path, blacklist):
-            scan_directory(subdir_path, markdown_content, blacklist, rules)
+        if not is_blacklisted(subdir_path, list_blacklist, list_dirs):
+            scan_directory(
+                subdir_path, markdown_content, list_blacklist, list_rules, list_dirs
+            )
         else:
             logging.info(f"Skipped blacklisted directory: {subdir_path}")
 
@@ -407,6 +422,13 @@ def scan_directory(directory, markdown_content, global_blacklist, global_rules):
 def _maid_init(args):
     rules = []
     blacklist = args.blacklist
+    list_dirs = args.dirs
+
+    if not blacklist:
+        blacklist = []
+
+    if not list_dirs:
+        list_dirs = []
 
     # Handle profiles first
     if args.profile:
@@ -415,22 +437,24 @@ def _maid_init(args):
                 profile = PROFILES[profile_name]
                 if "patterns" in profile:
                     _extend_unique(blacklist, profile["patterns"])
+                if "dirs" in profile:
+                    _extend_unique(list_dirs, profile["dirs"])
                 if "rules" in profile:
                     _extend_unique(rules, profile["rules"], lambda x: x["name"])
             else:
                 logging.warning(f"Profile '{profile_name}' not found")
 
     if args.maid_file:
-        load_maid_conf(args.maid_file, blacklist, rules)
+        load_maid_conf(args.maid_file, blacklist, rules, list_dirs)
 
     # load global blacklist from home directory '.maid.json' if exists
     home = str(Path.home())
     dirs = [home, os.path.join(home, ".local", "share"), os.path.join(home, ".config")]
 
     for d in dirs:
-        load_maid_conf(d, blacklist, rules)
+        load_maid_conf(d, blacklist, rules, list_dirs)
 
-    return blacklist, rules
+    return blacklist, rules, list_dirs
 
 
 def _dump_conf(blacklist, rules):
@@ -469,6 +493,11 @@ def main():
         help="Glob patterns for files or directories to skip (matched against filename only)",
     )
     parser.add_argument(
+        "--dirs",
+        action="append",
+        help="Directory name to skip (matched against full path)",
+    )
+    parser.add_argument(
         "--maid-file",
         help="File containing Maid configuration (maid.json)",
         default="maid.json",
@@ -490,15 +519,16 @@ def main():
             format="%(asctime)s - %(levelname)s - %(message)s",
         )
 
-    blacklist = []
-    rules = []
+    list_blacklist = []
+    list_rules = []
+    list_dirs = []
 
-    blacklist, rules = _maid_init(args)
+    list_blacklist, list_rules, list_dirs = _maid_init(args)
 
     if args.verbose:
-        _dump_conf(blacklist, rules)
+        _dump_conf(list_blacklist, list_rules, list_dirs)
 
-    logging.info(f"Blacklist patterns: {blacklist}")
+    logging.info(f"Blacklist patterns: {list_blacklist}")
 
     markdown_content = [
         "# Content\n\nThis file was generated by [Maid](https://github.com/fsoft72/maid) v%s - by [Fabio Rotondo](https://github.com/fsoft72)\n\n"
@@ -508,16 +538,17 @@ def main():
     for path in args.paths:
         if os.path.isdir(path):
             logging.info(f"Scanning directory: {path}")
-            _blacklist = blacklist.copy()
-            _rules = rules.copy()
+            _blacklist = list_blacklist.copy()
+            _rules = list_rules.copy()
+            _dirs = list_dirs.copy()
 
-            load_maid_conf(path, _blacklist, _rules)
+            load_maid_conf(path, _blacklist, _rules, list_dirs)
 
-            scan_directory(path, markdown_content, _blacklist, _rules)
+            scan_directory(path, markdown_content, _blacklist, _rules, _dirs)
         elif os.path.isfile(path):
-            if not is_blacklisted(path, blacklist):
+            if not is_blacklisted(path, list_blacklist):
                 logging.info(f"Processing file: {path}")
-                process_file(path, markdown_content, rules)
+                process_file(path, markdown_content, list_rules)
             else:
                 logging.info(f"Skipped blacklisted file: {path}")
         else:
