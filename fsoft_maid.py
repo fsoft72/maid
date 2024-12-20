@@ -289,49 +289,20 @@ def process_file(file_path, markdown_content, rules):
         markdown_content.append("```\n\n")
 
 
-def is_blacklisted(file_path, blacklist, dirs):
+def is_blacklisted(file_path, blacklist, directs):
     """
     Check if a file or diretcory name matches any of the blacklist patterns.
     """
     # check if file_path is a directory
-    if os.path.isdir(file_path):
-        dirname = file_path
-        print("=== CHECK: ", dirname, dirs)
-        if dirname in dirs:
-            print("=== DIRNAME: ", dirname, file_path)
-            return True
+    if file_path in directs:
+        logging.info(f"Skipping direct file/dir: {file_path}")
+        return True
 
     filename = os.path.basename(file_path)
     return any(fnmatch.fnmatch(filename, pattern) for pattern in blacklist)
 
 
-def _extend_unique(target_list, new_items, key_func=None):
-    """
-    Extend a list with new items, avoiding duplicates.
-    For rules, key_func should return the rule's unique identifier (name).
-    For patterns, key_func is None and items are compared directly.
-    """
-    if not new_items:
-        return
-
-    if key_func is None:
-        # For simple items like patterns
-        existing = set(target_list)
-        for item in new_items:
-            if item not in existing:
-                target_list.append(item)
-                existing.add(item)
-    else:
-        # For complex items like rules
-        existing = {key_func(item) for item in target_list}
-        for item in new_items:
-            key = key_func(item)
-            if key not in existing:
-                target_list.append(item)
-                existing.add(key)
-
-
-def load_maid_conf(directory, list_blacklist, list_rules, list_dirs):
+def load_maid_conf(directory, list_blacklist, list_rules, list_directs):
     """
     Load maid.json file from a directory.
     """
@@ -356,16 +327,15 @@ def load_maid_conf(directory, list_blacklist, list_rules, list_dirs):
     _loaded_confs[maid_conf_path] = True
 
     dct = json.loads(open(p, "r").read())
-    if "patterns" in dct:
-        _extend_unique(list_blacklist, dct["patterns"])
-    if "rules" in dct:
-        _extend_unique(list_rules, dct["rules"], lambda x: x["name"])
-    if "dirs" in dct:
-        _extend_unique(list_dirs, dct["dirs"])
+    _extend(dct, list_blacklist, list_rules, list_directs)
 
 
 def scan_directory(
-    directory, markdown_content, global_blacklist, global_rules, global_dirs
+    directory,
+    markdown_content,
+    global_blacklist,
+    global_rules,
+    global_directs,
 ):
     """
     Recursively scan a directory and process all files.
@@ -375,11 +345,11 @@ def scan_directory(
 
     # Copy global blacklist and rules to local variables
     list_blacklist = global_blacklist.copy()
-    list_dirs = global_dirs.copy()
+    list_directs = global_directs.copy()
     list_rules = global_rules.copy()
 
     # Load local configuration
-    load_maid_conf(directory, list_blacklist, list_rules, list_dirs)
+    load_maid_conf(directory, list_blacklist, list_rules, list_directs)
 
     logging.info(f"Scanning directory: {directory}")
 
@@ -398,12 +368,13 @@ def scan_directory(
         if os.path.isfile(full_path):
             files.append(entry)
         elif os.path.isdir(full_path):
-            subdirs.append(entry)
+            if not is_blacklisted(full_path, list_blacklist, list_directs):
+                subdirs.append(entry)
 
     # Process files in the current directory
     for file in files:
         file_path = os.path.join(directory, file)
-        if not is_blacklisted(file_path, list_blacklist, list_dirs):
+        if not is_blacklisted(file_path, list_blacklist, list_directs):
             process_file(file_path, markdown_content, list_rules)
         else:
             logging.info(f"Skipped blacklisted file: {file_path}")
@@ -411,55 +382,117 @@ def scan_directory(
     # Recursively process subdirectories
     for subdir in subdirs:
         subdir_path = os.path.join(directory, subdir)
-        if not is_blacklisted(subdir_path, list_blacklist, list_dirs):
+        if not is_blacklisted(subdir_path, list_blacklist, list_directs):
             scan_directory(
-                subdir_path, markdown_content, list_blacklist, list_rules, list_dirs
+                subdir_path,
+                markdown_content,
+                list_blacklist,
+                list_rules,
+                list_directs,
             )
         else:
             logging.info(f"Skipped blacklisted directory: {subdir_path}")
 
 
+def _extend_patterns_and_directs(lst, list_blacklist, list_directs):
+    """
+    Scan the `lst` list and extend the `list_blacklist` and `list_directs` lists with these rules:
+    - If the item starts with `./`, add it to the directs
+    - if the item starts with "/" add it to the directs
+    - otherwise add it to the blacklist
+
+    it only adds the item if it's not already in the list
+    """
+    if not lst:
+        return
+
+    existing_blacklist = set(list_blacklist)
+    existing_directs = set(list_directs)
+
+    for item in lst:
+        if item.startswith("./") or item.startswith("/"):
+            if item not in existing_directs:
+                list_directs.append(item)
+                existing_directs.add(item)
+        else:
+            if item not in existing_blacklist:
+                list_blacklist.append(item)
+                existing_blacklist.add(item)
+
+
+def _extend_rules(target_list, new_items, key_func):
+    """
+    Extend a list with new items, avoiding duplicates.
+    For key_func should return the rule's unique identifier (name).
+    """
+    if not new_items:
+        return
+
+    existing = {key_func(item) for item in target_list}
+    for item in new_items:
+        key = key_func(item)
+        if key not in existing:
+            target_list.append(item)
+            existing.add(key)
+
+
+def _extend(dct, list_blacklist, list_rules, list_directs):
+    if "patterns" in dct:
+        _extend_patterns_and_directs(dct["patterns"], list_blacklist, list_directs)
+
+    # v0.3.8 - Add support for "blacklist" key in place of "patterns"
+    if "blacklist" in dct:
+        _extend_patterns_and_directs(dct["blacklist"], list_blacklist, list_directs)
+
+    if "rules" in dct:
+        _extend_rules(list_rules, dct["rules"], lambda x: x["name"])
+
+
 def _maid_init(args):
-    rules = []
-    blacklist = args.blacklist
-    list_dirs = args.dirs
+    list_rules = []
+    # FIXME: we should filter patterns agains full paths in directs
+    list_blacklist = args.blacklist
+    list_directs = []
 
-    if not blacklist:
-        blacklist = []
+    if not list_blacklist:
+        list_blacklist = []
 
-    if not list_dirs:
-        list_dirs = []
+    if not list_directs:
+        list_directs = []
+
+    if not list_rules:
+        list_rules = []
 
     # Handle profiles first
     if args.profile:
         for profile_name in args.profile:
             if profile_name in PROFILES:
                 profile = PROFILES[profile_name]
-                if "patterns" in profile:
-                    _extend_unique(blacklist, profile["patterns"])
-                if "dirs" in profile:
-                    _extend_unique(list_dirs, profile["dirs"])
-                if "rules" in profile:
-                    _extend_unique(rules, profile["rules"], lambda x: x["name"])
+                _extend(profile["patterns"], list_blacklist, list_rules, list_directs)
+
             else:
                 logging.warning(f"Profile '{profile_name}' not found")
 
     if args.maid_file:
-        load_maid_conf(args.maid_file, blacklist, rules, list_dirs)
+        load_maid_conf(args.maid_file, list_blacklist, list_rules, list_directs)
 
     # load global blacklist from home directory '.maid.json' if exists
     home = str(Path.home())
     dirs = [home, os.path.join(home, ".local", "share"), os.path.join(home, ".config")]
 
     for d in dirs:
-        load_maid_conf(d, blacklist, rules, list_dirs)
+        load_maid_conf(d, list_blacklist, list_rules, list_directs)
 
-    return blacklist, rules, list_dirs
+    return list_blacklist, list_rules, list_directs
 
 
-def _dump_conf(blacklist, rules):
+def _dump_conf(blacklist, rules, directs):
     print("\n=== Active Patterns ===")
     for pattern in blacklist:
+        print(f"- {pattern}")
+
+    print("\n=== Active Directs ===")
+    for pattern in directs:
         print(f"- {pattern}")
 
     print("\n=== Active Rules ===")
@@ -521,12 +554,12 @@ def main():
 
     list_blacklist = []
     list_rules = []
-    list_dirs = []
+    list_directs = []
 
-    list_blacklist, list_rules, list_dirs = _maid_init(args)
+    list_blacklist, list_rules, list_directs = _maid_init(args)
 
     if args.verbose:
-        _dump_conf(list_blacklist, list_rules, list_dirs)
+        _dump_conf(list_blacklist, list_rules, list_directs)
 
     logging.info(f"Blacklist patterns: {list_blacklist}")
 
@@ -540,11 +573,11 @@ def main():
             logging.info(f"Scanning directory: {path}")
             _blacklist = list_blacklist.copy()
             _rules = list_rules.copy()
-            _dirs = list_dirs.copy()
+            _directs = list_directs.copy()
 
-            load_maid_conf(path, _blacklist, _rules, list_dirs)
+            load_maid_conf(path, _blacklist, _rules, _directs)
 
-            scan_directory(path, markdown_content, _blacklist, _rules, _dirs)
+            scan_directory(path, markdown_content, _blacklist, _rules, _directs)
         elif os.path.isfile(path):
             if not is_blacklisted(path, list_blacklist):
                 logging.info(f"Processing file: {path}")
