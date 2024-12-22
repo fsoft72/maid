@@ -124,6 +124,18 @@ class PatternMatcher:
         self._patterns.extend(patterns)
         self._optimized = False
 
+    def clear_patterns(self) -> None:
+        """Clear all patterns from the matcher.
+
+        Examples:
+            >>> matcher = PatternMatcher(["*.py", "!test_*.py"])
+            >>> matcher.clear_patterns()
+            >>> matcher.patterns
+            []
+        """
+        self._patterns.clear()
+        self._optimized = False
+
     def matches(self, filepath: Union[str, Path]) -> bool:
         """Check if a filepath matches any of the patterns.
 
