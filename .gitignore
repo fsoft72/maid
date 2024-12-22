@@ -2,3 +2,5 @@ _content.md
 dist
 *.egg-info
 venv
+*.pyc
+__pycache__

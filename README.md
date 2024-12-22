@@ -6,11 +6,23 @@ The creation of special _rules_ helps developer to filter text files and remove 
 
 It is very powerful and flexible, with support for:
 
-- blacklisting files and directories
+- ignoring files and directories (with the same syntax as `.gitignore`)
 - filtering text files using special `rules` (see below)
 - logging
 
 Configuration can be keept in a `maid.json` file in the root directory of the project and even modified in subdirectories using a `maid.json` file that is only applied to that directory and its subdirectories.
+
+## BREAKING CHANGES
+
+### v0.4.0
+
+v0.4.0 introduces some breaking changes and new features:
+
+- Now `--blacklist` option has been replaced by `--pattern` option. The `--pattern` option can be used multiple times to specify multiple patterns to ignore.
+
+- Now the pattern format is the same as `.gitignore` patterns, so you can use `*` to match any sequence of characters, `?` to match any single character, and `**` to match any sequence of characters, including slashes.
+
+- Now patterns are matched against the full path of the file or directory, so you can use patterns like `**/__pycache__` to ignore all `__pycache__` directories in the project.
 
 ## Installation
 
@@ -32,7 +44,7 @@ maid [OPTIONS] PATHS...
 
 - `-o`, `--output`: Specify the output Markdown file (default: `_content.md` in the current directory).
 - `--log`: Enable logging to stdout.
-- `--blacklist`: Glob patterns for files or directories to skip (matched against filename only). This option can be used multiple times.
+- `--pattern`: Glob ignoring patterns for files or directories to skip (matched against filename only). This option can be used multiple times.
 - `--maid-file`: File containing `maid` configuration (default: `maid.json` in the current directory).
 - `--verbose`: Display some extra information.
 - `--version`: Display the version.
@@ -59,17 +71,17 @@ To enable logging:
 ./maid -o output.md --log src
 ```
 
-### Using Blacklist Patterns
+### Using Ignoring Patterns
 
 To skip certain files or directories:
 
 ```bash
-./maid -o output.md --blacklist "*.log" --blacklist "__pycache__" src
+./maid -o output.md --pattern "*.log" --pattern "__pycache__" src
 ```
 
 ### Using a Maid configuration File
 
-To use a blacklist file:
+To use a custom maid configuration file:
 
 ```bash
 ./maid -o output.md --maid-file maid-special.json src
@@ -78,7 +90,7 @@ To use a blacklist file:
 ### Reading Global and Local maid.json Files
 
 Every directory scanned by `maid` will be checked for a `maid.json` file. If found, the patterns and rules in the file will be used to skip files or directories.
-Patterns are added to the current blacklist, so they can be combined with other blacklist patterns.
+Patterns are added to the current ignored patterns, so they can be combined with other ignoring patterns.
 
 At startup, `maid` will look for a global `maid.json` file in the following locations:
 
@@ -88,9 +100,9 @@ At startup, `maid` will look for a global `maid.json` file in the following loca
 - `.local/share/maid` directory in the home directory.
 - `.config/maid` directory in the home directory.
 
-### Blacklist Patterns
+### Ignoring Patterns
 
-Blacklist patterns can be specified directly via the `--blacklist` option or through a file using the `patterns` section in `--maid-file` option. Patterns are matched against filenames only.
+Ignoring patterns can be specified directly via the `--pattern` option or through a file using the `patterns` section in `--maid-file` option. Patterns match against filename and path, and they follow the same `.gitignore` syntax.
 
 ### Example `maid.json` File
 
