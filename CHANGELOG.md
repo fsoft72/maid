@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2024-12-22
+
+- Add: Pattern Matcher for more complex file matching, now you can use `.gitignore` like syntax.
+- Enhanced: `--pattern` option now supports `.gitignore` like syntax.
+- Enhanced: code refactoring and cleanup.
+
 ## [0.3.7] - 2024-11-16
 
 - Add: `--profile` option to add global rules
