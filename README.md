@@ -12,6 +12,18 @@ It is very powerful and flexible, with support for:
 
 Configuration can be keept in a `maid.json` file in the root directory of the project and even modified in subdirectories using a `maid.json` file that is only applied to that directory and its subdirectories.
 
+## BREAKING CHANGES
+
+### v0.4.0
+
+v0.4.0 introduces some breaking changes and new features:
+
+- Now `--blacklist` option has been replaced by `--pattern` option. The `--pattern` option can be used multiple times to specify multiple patterns to ignore.
+
+- Now the pattern format is the same as `.gitignore` patterns, so you can use `*` to match any sequence of characters, `?` to match any single character, and `**` to match any sequence of characters, including slashes.
+
+- Now patterns are matched against the full path of the file or directory, so you can use patterns like `**/__pycache__` to ignore all `__pycache__` directories in the project.
+
 ## Installation
 
 `maid` requires Python 3.6 or later.
