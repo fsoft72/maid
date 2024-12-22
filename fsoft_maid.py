@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# flake8: noqa: E203
+
 """
 Program Name: Maid
 Usage: Aggregates Markdown files from directories and files.
@@ -35,10 +37,12 @@ import sys
 from pathlib import Path
 import fnmatch
 
-VERSION = "0.3.7"
+from lib.pattern_matcher import PatternMatcher
 
-# default blacklist
-BLACKLIST = [
+VERSION = "0.4.0"
+
+# default patterns
+PATTERNS = [
     ".git",
     ".gitignore",
     ".gitattributes",
@@ -138,6 +142,13 @@ def _ext2markdown(fname):
     }.get(ext, "text")
 
 
+# ==================================
+# GLOBAL VARIABLES
+# ==================================
+
+matcher = PatternMatcher(PATTERNS)
+
+
 def is_binary(file_path):
     """
     Check if a file is binary, handling UTF-16 files with BOM.
@@ -158,15 +169,9 @@ def is_binary(file_path):
 
 
 def _apply_rules(file_name, content, rules):
-    import fnmatch
     import logging
 
     do_debug = False
-    """
-    if str(file_name).endswith("theme.ts"):
-        print("=== FILE: ", file_name, rules)
-        do_debug = True
-    """
 
     for rule in rules:
         if do_debug:
@@ -275,14 +280,6 @@ def process_file(file_path, markdown_content, rules):
         markdown_content.append("```\n\n")
 
 
-def is_blacklisted(file_path, blacklist):
-    """
-    Check if a file matches any of the blacklist patterns.
-    """
-    filename = os.path.basename(file_path)
-    return any(fnmatch.fnmatch(filename, pattern) for pattern in blacklist)
-
-
 def _extend_unique(target_list, new_items, key_func=None):
     """
     Extend a list with new items, avoiding duplicates.
@@ -309,7 +306,7 @@ def _extend_unique(target_list, new_items, key_func=None):
                 existing.add(key)
 
 
-def load_maid_conf(directory, blacklist, rules):
+def load_maid_conf(directory, patterns, rules):
     """
     Load maid.json file from a directory.
     """
@@ -335,24 +332,27 @@ def load_maid_conf(directory, blacklist, rules):
 
     dct = json.loads(open(p, "r").read())
     if "patterns" in dct:
-        _extend_unique(blacklist, dct["patterns"])
+        _extend_unique(patterns, dct["patterns"])
     if "rules" in dct:
         _extend_unique(rules, dct["rules"], lambda x: x["name"])
 
 
-def scan_directory(directory, markdown_content, global_blacklist, global_rules):
+def scan_directory(directory, markdown_content, global_patterns, global_rules):
     """
     Recursively scan a directory and process all files.
     """
     import os
     import logging
 
-    # Copy global blacklist and rules to local variables
-    blacklist = global_blacklist.copy()
+    # Copy global patterns and rules to local variables
+    patterns = global_patterns.copy()
     rules = global_rules.copy()
 
     # Load local configuration
-    load_maid_conf(directory, blacklist, rules)
+    load_maid_conf(directory, patterns, rules)
+    matcher.clear_patterns()
+    matcher.add_patterns(PATTERNS)
+    matcher.add_patterns(patterns)
 
     logging.info(f"Scanning directory: {directory}")
 
@@ -376,23 +376,23 @@ def scan_directory(directory, markdown_content, global_blacklist, global_rules):
     # Process files in the current directory
     for file in files:
         file_path = os.path.join(directory, file)
-        if not is_blacklisted(file_path, blacklist):
+        if not matcher.matches(file_path):
             process_file(file_path, markdown_content, rules)
         else:
-            logging.info(f"Skipped blacklisted file: {file_path}")
+            logging.info(f"Skipped ignored file: {file_path}")
 
     # Recursively process subdirectories
     for subdir in subdirs:
         subdir_path = os.path.join(directory, subdir)
-        if not is_blacklisted(subdir_path, blacklist):
-            scan_directory(subdir_path, markdown_content, blacklist, rules)
+        if not matcher.matches(subdir_path):
+            scan_directory(subdir_path, markdown_content, patterns, rules)
         else:
-            logging.info(f"Skipped blacklisted directory: {subdir_path}")
+            logging.info(f"Skipped ignored directory: {subdir_path}")
 
 
 def _maid_init(args):
     rules = []
-    blacklist = args.blacklist
+    patterns = args.pattern
 
     # Handle profiles first
     if args.profile:
@@ -400,28 +400,28 @@ def _maid_init(args):
             if profile_name in PROFILES:
                 profile = PROFILES[profile_name]
                 if "patterns" in profile:
-                    _extend_unique(blacklist, profile["patterns"])
+                    _extend_unique(patterns, profile["patterns"])
                 if "rules" in profile:
                     _extend_unique(rules, profile["rules"], lambda x: x["name"])
             else:
                 logging.warning(f"Profile '{profile_name}' not found")
 
     if args.maid_file:
-        load_maid_conf(args.maid_file, blacklist, rules)
+        load_maid_conf(args.maid_file, patterns, rules)
 
-    # load global blacklist from home directory '.maid.json' if exists
+    # load global patterns from home directory '.maid.json' if exists
     home = str(Path.home())
     dirs = [home, os.path.join(home, ".local", "share"), os.path.join(home, ".config")]
 
     for d in dirs:
-        load_maid_conf(d, blacklist, rules)
+        load_maid_conf(d, patterns, rules)
 
-    return blacklist, rules
+    return patterns, rules
 
 
-def _dump_conf(blacklist, rules):
+def _dump_conf(patterns, rules):
     print("\n=== Active Patterns ===")
-    for pattern in blacklist:
+    for pattern in matcher.patterns:
         print(f"- {pattern}")
 
     print("\n=== Active Rules ===")
@@ -436,6 +436,8 @@ def _dump_conf(blacklist, rules):
 
 
 def main():
+    global matcher
+
     parser = argparse.ArgumentParser(
         description="Create an aggregated Markdown file from directories and files."
     )
@@ -449,9 +451,9 @@ def main():
     parser.add_argument("--log", action="store_true", help="Enable logging")
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     parser.add_argument(
-        "--blacklist",
+        "--pattern",
         action="append",
-        default=BLACKLIST,
+        default=PATTERNS,
         help="Glob patterns for files or directories to skip (matched against filename only)",
     )
     parser.add_argument(
@@ -476,15 +478,15 @@ def main():
             format="%(asctime)s - %(levelname)s - %(message)s",
         )
 
-    blacklist = []
+    patterns = []
     rules = []
 
-    blacklist, rules = _maid_init(args)
+    patterns, rules = _maid_init(args)
 
     if args.verbose:
-        _dump_conf(blacklist, rules)
+        _dump_conf(patterns, rules)
 
-    logging.info(f"Blacklist patterns: {blacklist}")
+    logging.info(f"Ignored patterns: {patterns}")
 
     markdown_content = [
         "# Content\n\nThis file was generated by [Maid](https://github.com/fsoft72/maid) v%s - by [Fabio Rotondo](https://github.com/fsoft72)\n\n"
@@ -494,18 +496,21 @@ def main():
     for path in args.paths:
         if os.path.isdir(path):
             logging.info(f"Scanning directory: {path}")
-            _blacklist = blacklist.copy()
+            _patterns = patterns.copy()
             _rules = rules.copy()
 
-            load_maid_conf(path, _blacklist, _rules)
+            load_maid_conf(path, _patterns, _rules)
+            matcher.clear_patterns()
+            matcher.add_patterns(PATTERNS)
+            matcher.add_patterns(_patterns)
 
-            scan_directory(path, markdown_content, _blacklist, _rules)
+            scan_directory(path, markdown_content, _patterns, _rules)
         elif os.path.isfile(path):
-            if not is_blacklisted(path, blacklist):
+            if not matcher.matches(path):
                 logging.info(f"Processing file: {path}")
                 process_file(path, markdown_content, rules)
             else:
-                logging.info(f"Skipped blacklisted file: {path}")
+                logging.info(f"Skipped ignored file: {path}")
         else:
             logging.warning(f"Invalid path: {path}")
 
