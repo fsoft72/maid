@@ -39,7 +39,7 @@ import fnmatch
 
 from lib.pattern_matcher import PatternMatcher
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 
 # default patterns
 PATTERNS = [

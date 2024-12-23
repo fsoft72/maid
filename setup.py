@@ -9,7 +9,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="fsoft-maid",
-    version="0.4.0",
+    version="0.4.1",
     description="Markdown AI Doc creator",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -18,7 +18,7 @@ setup(
     url="https://github.com/fsoft72/maid",
     license="MIT",
     packages=find_packages(),
-    py_modules=["fsoft_maid"],
+    py_modules=["fsoft_maid", "lib.pattern_matcher"],
     entry_points={
         "console_scripts": [
             "maid=fsoft_maid:main",
