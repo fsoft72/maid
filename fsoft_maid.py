@@ -37,9 +37,12 @@ import sys
 from pathlib import Path
 import fnmatch
 
-from lib.pattern_matcher import PatternMatcher
+try:
+    from fsoft_maid.lib.pattern_matcher import PatternMatcher
+except ImportError:
+    from lib.pattern_matcher import PatternMatcher
 
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 
 # default patterns
 PATTERNS = [
