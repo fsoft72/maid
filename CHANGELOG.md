@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2024-12-24
+
+- Add: new test suite to test against a complext file structure.
+- Add: `--verbose` now lists also all the files excluded by the patterns
+- Enh: code optimization to reduce list copies
+
 ## [0.4.2] - 2024-12-24
 
 - FIX: issues with package

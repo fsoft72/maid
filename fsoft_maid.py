@@ -42,7 +42,7 @@ try:
 except ImportError:
     from lib.pattern_matcher import PatternMatcher
 
-VERSION = "0.4.2"
+VERSION = "0.4.5"
 
 # default patterns
 PATTERNS = [
@@ -61,6 +61,7 @@ PATTERNS = [
 
 _loaded_confs = {}
 _files_included = []
+_files_excluded = []
 
 PROFILES = {
     "c#": {
@@ -382,6 +383,7 @@ def scan_directory(directory, markdown_content, global_patterns, global_rules):
         if not matcher.matches(file_path):
             process_file(file_path, markdown_content, rules)
         else:
+            _files_excluded.append(file_path)
             logging.info(f"Skipped ignored file: {file_path}")
 
     # Recursively process subdirectories
@@ -390,6 +392,7 @@ def scan_directory(directory, markdown_content, global_patterns, global_rules):
         if not matcher.matches(subdir_path):
             scan_directory(subdir_path, markdown_content, patterns, rules)
         else:
+            _files_excluded.append(subdir_path)
             logging.info(f"Skipped ignored directory: {subdir_path}")
 
 
@@ -499,23 +502,8 @@ def main():
     for path in args.paths:
         if os.path.isdir(path):
             logging.info(f"Scanning directory: {path}")
-            _patterns = patterns.copy()
-            _rules = rules.copy()
 
-            load_maid_conf(path, _patterns, _rules)
-            matcher.clear_patterns()
-            matcher.add_patterns(PATTERNS)
-            matcher.add_patterns(_patterns)
-
-            scan_directory(path, markdown_content, _patterns, _rules)
-        elif os.path.isfile(path):
-            if not matcher.matches(path):
-                logging.info(f"Processing file: {path}")
-                process_file(path, markdown_content, rules)
-            else:
-                logging.info(f"Skipped ignored file: {path}")
-        else:
-            logging.warning(f"Invalid path: {path}")
+            scan_directory(path, markdown_content, patterns, rules)
 
     with open(args.output, "w", encoding="utf-8") as f:
         f.write("".join(markdown_content))
@@ -525,6 +513,10 @@ def main():
     if args.verbose:
         print("\n=== Included files: ")
         for f in _files_included:
+            print(f)
+
+        print("\n=== Excluded files: ")
+        for f in _files_excluded:
             print(f)
 
 
