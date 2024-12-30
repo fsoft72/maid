@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.6] - 2024-12-30
+
+- Add: `--binary` option to define extensions that should be considered binary files.
+- Add: `--no-binary` option to remove extensions from the binary list.
+
 ## [0.4.5] - 2024-12-24
 
 - Add: new test suite to test against a complext file structure.

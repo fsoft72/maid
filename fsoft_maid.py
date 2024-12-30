@@ -42,7 +42,7 @@ try:
 except ImportError:
     from lib.pattern_matcher import PatternMatcher
 
-VERSION = "0.4.5"
+VERSION = "0.4.6"
 
 # default patterns
 PATTERNS = [
@@ -62,6 +62,43 @@ PATTERNS = [
 _loaded_confs = {}
 _files_included = []
 _files_excluded = []
+
+_files_binaries = []  # Files treated as binaries
+_binaries = set(
+    [
+        "png",
+        "jpg",
+        "jpeg",
+        "gif",
+        "ico",
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "ppt",
+        "pptx",
+        "zip",
+        "rar",
+        "7z",
+        "gz",
+        "tar",
+        "tgz",
+        "bz2",
+        "xz",
+        "mp3",
+        "wav",
+        "mp4",
+        "avi",
+        "mov",
+        "mkv",
+        "flv",
+        "swf",
+        "exe",
+        "dll",
+        "svg",
+    ]
+)  # This is a list of extensions that are considered binary files
 
 PROFILES = {
     "c#": {
@@ -157,6 +194,14 @@ def is_binary(file_path):
     """
     Check if a file is binary, handling UTF-16 files with BOM.
     """
+
+    #  get the file extension (lowercase, without the dot)
+    ext = os.path.splitext(file_path)[1]
+    ext = ext.lower().replace(".", "")
+    if ext in _binaries:
+        _files_binaries.append(file_path)
+        return True
+
     try:
         # Check first few bytes for UTF-16 BOM
         with open(file_path, "rb") as check_file:
@@ -169,6 +214,7 @@ def is_binary(file_path):
             check_file.read()
             return False
     except (IOError, OSError, UnicodeDecodeError):
+        _files_binaries.append(file_path)
         return True
 
 
@@ -422,6 +468,14 @@ def _maid_init(args):
     for d in dirs:
         load_maid_conf(d, patterns, rules)
 
+    if args.binary:
+        _binaries.update([ext.replace(".", "").lower() for ext in args.binary])
+
+    if args.no_binary:
+        # remove from binaries
+        for ext in args.no_binary:
+            _binaries.discard(ext.replace(".", "").lower())
+
     return patterns, rules
 
 
@@ -473,6 +527,14 @@ def main():
         help="Load settings from predefined profile (can be used multiple times)",
     )
 
+    parser.add_argument(
+        "--binary", action="append", help="File extensions to treat as binary"
+    )
+
+    parser.add_argument(
+        "--no-binary", action="append", help="File extensions to treat as non-binary"
+    )
+
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
 
     args = parser.parse_args()
@@ -517,6 +579,10 @@ def main():
 
         print("\n=== Excluded files: ")
         for f in _files_excluded:
+            print(f)
+
+        print("\n=== Binary files: ")
+        for f in _files_binaries:
             print(f)
 
 
