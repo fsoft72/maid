@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.8] - WIP
+
+- Add: new preset "svelte" for Svelte projects.
+
 ## [0.4.7] - 2025-01-03
 
 - Add: experimental Windows file system name normalization.

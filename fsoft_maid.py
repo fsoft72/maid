@@ -42,7 +42,7 @@ try:
 except ImportError:
     from lib.pattern_matcher import PatternMatcher
 
-VERSION = "0.4.7"
+VERSION = "0.4.8"
 
 # default patterns
 PATTERNS = [
