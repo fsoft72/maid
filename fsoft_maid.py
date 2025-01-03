@@ -57,6 +57,9 @@ PATTERNS = [
     "node_modules",
     "*.bak",
     "*.old",
+    ".prettier*",
+    ".npmrc",
+    "*.d.ts",
 ]
 
 _loaded_confs = {}
@@ -129,6 +132,21 @@ PROFILES = {
             "Release",
             "*.ico",
             "*.licx",
+        ]
+    },
+    "svelte": {
+        "patterns": [
+            "dist",
+            "node_modules",
+            "*lock*",
+            "*.css",
+            "*.yaml",
+            ".prettier*",
+            ".npmrc",
+            "*.config.*",
+            "tsconfig.json",
+            "package.json",
+            "*.d.ts",
         ]
     },
     "no-images": {"patterns": ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.ico"]},
