@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2025-01-03
+
+- Add: experimental Windows file system name normalization.
+
 ## [0.4.6] - 2024-12-30
 
 - Add: `--binary` option to define extensions that should be considered binary files.

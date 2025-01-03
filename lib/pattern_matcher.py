@@ -3,6 +3,7 @@
 # flake8: noqa: E203
 
 import re
+import os
 from pathlib import Path
 from typing import Union, Sequence
 
@@ -61,18 +62,34 @@ class PatternMatcher:
         if not self._optimized:
             self._patterns.sort(key=lambda x: not x.startswith("!"))
             self._patterns = [
-                f"{p}**" if p.endswith("/") else p
-                for p in dict.fromkeys(p.strip() for p in self._patterns)
+                p.replace("\\", "/")
+                for p in [  # Normalize pattern separators
+                    f"{p}**" if p.endswith("/") else p
+                    for p in dict.fromkeys(p.strip() for p in self._patterns)
+                ]
             ]
             self._optimized = True
 
     def _normalize_path(self, path: str) -> str:
+        # Convert path to use forward slashes
+        path = path.replace("\\", "/")
+
+        # Strip leading ./ and /
         path = path.strip()
-        return (
-            path[2:]
-            if path.startswith("./")
-            else path[1:] if path.startswith("/") else path
-        )
+        if path.startswith("./"):
+            path = path[2:]
+        elif path.startswith("/"):
+            path = path[1:]
+
+        # Handle Windows drive letters (C:/ etc)
+        if len(path) >= 2 and path[1] == ":":
+            path = path[2:]
+
+        # Handle Windows UNC paths
+        if path.startswith("//"):
+            path = path[2:]
+
+        return path
 
     def _convert_to_regex(self, pattern: str) -> str:
         parts = []
@@ -154,6 +171,11 @@ class PatternMatcher:
             >>> matcher.matches("test_foo.py")
             False
         """
+        # Convert Path objects to string and normalize separators
+        if isinstance(filepath, Path):
+            filepath = str(filepath)
+        filepath = self._normalize_path(filepath)
+
         self._ensure_optimized()
         filepath = self._normalize_path(str(filepath))
 
